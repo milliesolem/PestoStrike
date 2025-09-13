@@ -32,13 +32,4 @@ iterator speck_ctr(key: array[2, uint64], iv: uint64): uint8 =
             yield uint8((block_iteration[1] shr (8*(3-j))) and 255)
         i+=1
 
-proc encrypt(ct: array[256,uint8], key1: uint64, key2: uint64, iv: uint64): string =
-    var res = ""
-    let key: array[2, uint64] = [key1, key2]
-    var i = 0
-    for c in speck_ctr(key, iv):
-        if uint8(c) == uint8(ct[i]):
-            break
-        res.add(char(uint8(c) xor ct[i]))
-        i += 1
-    return res
+export speck_ctr
