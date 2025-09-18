@@ -2,7 +2,9 @@
 
 import net, os, strutils
 import job
-import encrypted_socket
+import ../util/encrypted_socket
+import tables
+
 
 let PARENT_HOST: string = "127.0.0.1"
 let PARENT_PORT: int = 3301
@@ -12,7 +14,7 @@ let SOCKET_KEY: array[2, uint64] = [0xdeadbeef13371337, 0xdeadbeef33013301]
 
 var PARENT_SOCKET: EncSocket = newEncSocket(PARENT_HOST, PARENT_PORT, SOCKET_KEY)
 
-var JOB_POOL: seq[Job] = @[]
+var JOB_POOL = initTable[string, Job]()
 
 
 type DebugLevel = enum
@@ -41,7 +43,8 @@ proc main() =
     while true:
         let serialized_job: seq[uint8] = PARENT_SOCKET.recv()
         let new_job: Job = deserialize_job(serialized_job)
-        JOB_POOL.add(new_job)
+        JOB_POOL[new_job.job_id] = new_job
+        debug("Command loop initiated!", DebugLevel.INFO)
         for job in JOB_POOL:
             job.check_schedule()
 

@@ -1,0 +1,34 @@
+<form action="/submit_job" method="POST">
+    <table>
+    <tr>
+        <td><label for="job_type">Job type:</label>
+        <td><select name="job_type" id="job_form_type">
+            <option value="python">Python script</option>
+            <option value="shell_script">Shell script</option>
+            <option value="shell_command">Shell command</option>
+            <option value="coff">COFF object</option>
+        </select></td>
+    </tr>
+    <tr>
+        <td><label for="job_type">Initial execution time:</label></td>
+        <td><input type="datetime-local" id="first_exec_time" name="first_exec_time"></td>
+    </tr>
+    <tr>
+        <td><label for="repeat">Repeat:</label></td>
+        <td>
+            <input type="checkbox" name="repeat" value="repeat" checked>
+            <input type="number" value="1" name="repeat_hours" min="0" max="100">h
+            <input type="number" value="0" name="repeat_minutes" min="0" max="59">m
+            <input type="number" value="0" name="repeat_seconds" min="0" max="59">s
+        </td>
+    </tr>
+    <tr>
+        <td><label for="repeat">Report back:</label></td>
+        <td>
+            <input type="checkbox" name="rb" value="rb" checked>
+            <input type="text" name="rb_host" value="127.0.0.1">:
+            <input type="number" value="1337" name="rb_port" min="0" max="65535">
+        </td>
+    </tr>
+    </table>
+</form>

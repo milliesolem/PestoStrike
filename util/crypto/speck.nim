@@ -24,7 +24,7 @@ proc speck_encrypt(pt: array[2, uint64], K: array[2, uint64]): array[2, uint64] 
 iterator speck_ctr(key: array[2, uint64], iv: uint64): uint8 =
     var block_iteration = speck_encrypt([iv, 0], key)
     var i: uint64 = 1
-    for k in 0..1024:
+    while true:
         block_iteration = speck_encrypt([iv, i], key)
         for j in 0..<4:
             yield uint8((block_iteration[0] shr (8*(3-j))) and 255)
