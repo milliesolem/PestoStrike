@@ -2,6 +2,7 @@ import net, os, strutils, times
 import std/json
 import std/re
 import tables
+import std/strformat
 
 # yes, i did implement HTTP from scratch because Nim
 # had no good http libraries that satisfied my
@@ -27,10 +28,42 @@ type HTTPRequest = object
     headers: Table[string, string]
     body: string
 
+proc getPath(self: HTTPRequest): string = self.path
+proc getHttpVersion(self: HTTPRequest): string = self.http_version
+proc getHeaders(self: HTTPRequest): Table[string, string] = self.headers
+proc getBody(self: HTTPRequest): string = self.body
+
+
 type HTTPResponse = object
     status_code: int
     headers: Table[string, string]
+    http_version: string
     body: string
+
+proc newHTTPResponse(status_code: int, headers: Table[string, string], http_version: string, body: string): HTTPResponse = HTTPResponse(status_code: status_code, headers: headers, http_version: http_version, body: body)
+
+proc getStatusCode(self: HTTPResponse): int = self.status_code
+proc getHeaders(self: HTTPResponse): Table[string, string] = self.headers
+proc getHttpVersion(self: HTTPResponse): string = self.http_version
+proc getBody(self: HTTPResponse): string = self.body
+proc setBody(self: var HTTPResponse, body: string) =
+    self.body = body
+
+
+#proc resp2string(self: HTTPResp): string =
+    
+
+# TODO: use dollar sign
+proc `$`(self: HTTPResponse): string =
+    var res = self.http_version
+    if self.status_code == 200:
+        res.add(" 200 OK\n")
+    for header, value in self.headers.pairs:
+        res.add(&"{header}: {value}\n")
+    res.add(&"Content-Length: {self.body.len}\n\n")
+    res.add(self.body)
+    return res
+
 
 proc parseHTTPRequestHeaders(request_headers: string): HTTPRequest =
     let request_method: HTTPMethod = string2httpmethod(findAll(request_headers, re"[A-Z]+")[0])
@@ -54,11 +87,13 @@ proc handleHTTPRequest(client: Socket): HTTPRequest =
             break
         response.add(line & '\n')
     var request: HTTPRequest = parseHTTPRequestHeaders(response)
-    if "content-length" in  request.headers
-        discard client.recv(request.body, request.headers["content-length"])
+    if "Content-Length" in request.headers:
+        discard client.recv(request.body, parseInt(request.headers["Content-Length"]))
     return request
 
+export HTTPMethod, HTTPRequest, HTTPResponse, getStatusCode, getPath, getHttpVersion, getHeaders, getBody, setBody, newHTTPResponse, handleHTTPRequest, parseHTTPRequestHeaders, `$`
 
+discard """
 var socket = newSocket()
 socket.bindAddr(Port(5252))
 socket.listen()
@@ -78,7 +113,7 @@ while true:
 echo parseHTTPRequestHeaders(response)
 socket.close()
 client.close()
-
+"""
 
 
 

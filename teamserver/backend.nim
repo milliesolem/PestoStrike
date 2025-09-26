@@ -3,8 +3,14 @@
 import net, os, strutils, times
 import db_connector/db_sqlite
 import std/json
-import ../util/agent, ../util/job
+import std/locks
+import std/tables
+import std/strformat
+import ../util/agent, ../util/job, ../util/encrypted_socket, ../util/logger, ../util/json_http_api
 
+
+let DEBUG: bool = true
+let LOGGER = newLogger(DEBUG)
 
 let db = open("teamserver.db", "", "", "")
 
@@ -40,20 +46,84 @@ CREATE TABLE IF NOT EXISTS jobs (
 )
 
 var AGENT_TABLE = initTable[string, Agent]()
+
 var JOB_TABLE = initTable[string, Job]()
+var JOB_LISTENING_POOL: seq[Thread[Job]] = @[];
+
+var JOB_OUTPUT = initTable[string, seq[seq[uint8]]]()
+# this is a stack of supplementary input to give to the job
+var JOB_COMSTACK = initTable[string, seq[seq[uint8]]]()
+var THREAD_LOCK: Lock 
 
 proc register_agent(agent: Agent) =
-    AGENT_TABLE[agent.agent_id] = agent
+    AGENT_TABLE[agent.getId()] = agent
     db.exec(sql"INSERT INTO agents (id, os, machine_name, user, home_directory, is_admin) VALUES (?,?,?,?,?,?)",
-    agent.agent_id, agent.machine_name, agent.user, agent.home_directory, agent.is_admin.int
+    agent.getId(), agent.getMachineName(), agent.getUser(), agent.getHomeDirectory(), agent.isAdmin().int
     )
 
 proc register_job(job: Job) =
-    JOB_TABLE[job.job_id] = job
-    db.exec(sql"INSERT INTO agents (id, type, first_exec_time, exec_time, repeat, is_admin) VALUES (?,?,?,?,?,?)",
-    agent.agent_id, agent.machine_name, agent.user, agent.home_directory, agent.is_admin.int
+    JOB_TABLE[job.getId()] = job
+    JOB_OUTPUT[job.getId()] = @[]
+    db.exec(sql"INSERT INTO jobs (id, type, first_exec_time, exec_time, repeat, report_back_host, report_back_port) VALUES (?,?,?,?,?,?)",
+    job.getId(), job.getType().int, job.getFirstExecTime(), job.getExecTime(), job.isRepeating().int, job.getReportBackHost(), job.getReportBackPort()
     )
 
+
+
+proc job_listener(job: Job) {.thread.} =
+    acquire(THREAD_LOCK)
+    #var socket: EncSocket = job.getReportBackSocket()
+    release(THREAD_LOCK)
+    while true:
+        acquire(THREAD_LOCK)
+        #var client: EncSocket = socket.listen()
+        #LOGGER.log(&"Job {job.getId()} received connection from {client.getHost()}:{client.getPort()}", LogLevel.SUCCESS)
+        #JOB_OUTPUT[job.getId()].add(client.recv())
+        release(THREAD_LOCK)
+
+
+proc web_list_agents(): HTTPResponse = 
+    var res = "{"
+    for agent_id, agent in AGENT_TABLE.pairs:
+        res.add(&"\"{agent_id}\":" & agent.asJson() & ",")
+    res.add("}")
+    var http_response: HTTPResponse = newHTTPResponse(
+        200,
+        {"Content-Type": "application/json"}.toTable,
+        "HTTP/1.1",
+        res
+    )
+    return http_response
+            
+
+proc web_listener(port: int) =
+    var socket: Socket = newSocket()
+    socket.bindAddr(Port(port))
+    LOGGER.log(&"Web API listening at http://0.0.0.0:{port}/", LogLevel.INFO)
+    socket.listen()
+    while true:
+        var request: HTTPRequest = handleHTTPRequest(socket)
+        var http_response = newHTTPResponse(200,{"test":"test"}.toTable,"HTTP/1.1","")
+        let path: string = request.getPath()
+        if path == "/":
+            http_response.setBody("Hello, there!")
+        elif path == "/submitjob":
+            var job: Job = json2job(request.getBody())
+            register_job(job)
+            http_response.setBody("Job successfully submitted!")
+        elif path == "/agents":
+            http_response = web_list_agents()
+        socket.send($http_response)
+
+
+
+
+
+proc main() =
+    LOGGER.log("starting PestoStrike ...", LogLevel.INFO)
+    web_listener(8787)
+
+main()
 
 
 
