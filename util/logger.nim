@@ -1,6 +1,6 @@
 
 
-let PREFIXES = ["i", "*", "!", "x"]
+let PREFIXES = ["\x1b[94mi\x1b[37m", "\x1b[92m+\x1b[37m", "\x1b[93m!\x1b[37m", "\x1b[91mx\x1b[37m"]
 
 type LogLevel = enum
     INFO = 0

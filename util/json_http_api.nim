@@ -46,8 +46,11 @@ proc getStatusCode(self: HTTPResponse): int = self.status_code
 proc getHeaders(self: HTTPResponse): Table[string, string] = self.headers
 proc getHttpVersion(self: HTTPResponse): string = self.http_version
 proc getBody(self: HTTPResponse): string = self.body
+
 proc setBody(self: var HTTPResponse, body: string) =
     self.body = body
+proc setStatusCode(self: var HTTPResponse, status_code: int) =
+    self.status_code = status_code
 
 
 #proc resp2string(self: HTTPResp): string =
@@ -58,6 +61,8 @@ proc `$`(self: HTTPResponse): string =
     var res = self.http_version
     if self.status_code == 200:
         res.add(" 200 OK\n")
+    else:
+        res.add(" 404 Not Found\n")
     for header, value in self.headers.pairs:
         res.add(&"{header}: {value}\n")
     res.add(&"Content-Length: {self.body.len}\n\n")
@@ -91,7 +96,7 @@ proc handleHTTPRequest(client: Socket): HTTPRequest =
         discard client.recv(request.body, parseInt(request.headers["Content-Length"]))
     return request
 
-export HTTPMethod, HTTPRequest, HTTPResponse, getStatusCode, getPath, getHttpVersion, getHeaders, getBody, setBody, newHTTPResponse, handleHTTPRequest, parseHTTPRequestHeaders, `$`
+export HTTPMethod, HTTPRequest, HTTPResponse, getStatusCode, setStatusCode, getPath, getHttpVersion, getHeaders, getBody, setBody, newHTTPResponse, handleHTTPRequest, parseHTTPRequestHeaders, `$`
 
 discard """
 var socket = newSocket()

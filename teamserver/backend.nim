@@ -39,8 +39,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     exec_time INT NOT NULL,
     repeat INT NOT NULL,
     report_back_host TEXT NOT NULL,
-    report_back_port TEXT NOT NULL,
-    FOREIGN KEY(agent) REFERENCES agents(id)
+    report_back_port TEXT NOT NULL
 );
 """
 )
@@ -58,7 +57,7 @@ var THREAD_LOCK: Lock
 proc register_agent(agent: Agent) =
     AGENT_TABLE[agent.getId()] = agent
     db.exec(sql"INSERT INTO agents (id, os, machine_name, user, home_directory, is_admin) VALUES (?,?,?,?,?,?)",
-    agent.getId(), agent.getMachineName(), agent.getUser(), agent.getHomeDirectory(), agent.isAdmin().int
+    agent.getId(), agent.getOS(), agent.getMachineName(), agent.getUser(), agent.getHomeDirectory(), agent.isAdmin().int
     )
 
 proc register_job(job: Job) =
@@ -84,8 +83,12 @@ proc job_listener(job: Job) {.thread.} =
 
 proc web_list_agents(): HTTPResponse = 
     var res = "{"
+    var i: int = 0
     for agent_id, agent in AGENT_TABLE.pairs:
-        res.add(&"\"{agent_id}\":" & agent.asJson() & ",")
+        i += 1
+        res.add(&"\"{agent_id}\":" & agent.asJson())
+        if i < AGENT_TABLE.len:
+            res.add(",")
     res.add("}")
     var http_response: HTTPResponse = newHTTPResponse(
         200,
@@ -99,12 +102,16 @@ proc web_list_agents(): HTTPResponse =
 proc web_listener(port: int) =
     var socket: Socket = newSocket()
     socket.bindAddr(Port(port))
-    LOGGER.log(&"Web API listening at http://0.0.0.0:{port}/", LogLevel.INFO)
+    LOGGER.log(&"Web API: listening at http://0.0.0.0:{port}/", LogLevel.INFO)
     socket.listen()
+    var client: Socket
+    var address = ""
     while true:
-        var request: HTTPRequest = handleHTTPRequest(socket)
+        socket.acceptAddr(client, address)
+        var request: HTTPRequest = handleHTTPRequest(client)
         var http_response = newHTTPResponse(200,{"test":"test"}.toTable,"HTTP/1.1","")
         let path: string = request.getPath()
+        var log_level: LogLevel = LogLevel.SUCCESS
         if path == "/":
             http_response.setBody("Hello, there!")
         elif path == "/submitjob":
@@ -113,7 +120,13 @@ proc web_listener(port: int) =
             http_response.setBody("Job successfully submitted!")
         elif path == "/agents":
             http_response = web_list_agents()
-        socket.send($http_response)
+        else:
+            http_response.setStatusCode(404)
+            http_response.setBody("Not found")
+            log_level = LogLevel.WARNING
+        LOGGER.log(&"Web API: request from {address} to {path} (status code {http_response.getStatusCode()})", log_level)
+        client.send($http_response)
+        client.close()
 
 
 
@@ -121,6 +134,8 @@ proc web_listener(port: int) =
 
 proc main() =
     LOGGER.log("starting PestoStrike ...", LogLevel.INFO)
+    var dummy_agent = newAgent("Debian 12", "Shamir", "sithis", "/home/sithis", true)
+    register_agent(dummy_agent)
     web_listener(8787)
 
 main()

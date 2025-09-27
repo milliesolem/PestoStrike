@@ -1,6 +1,7 @@
 
 import Job
 import std/json
+import uuid
 
 type OS = enum
     WINDOWS = 0
@@ -18,6 +19,10 @@ type Agent = object
     # this is a special job that defines the communications between the agent
     # and the teamserver
     comjob: Job
+
+proc newAgent(os: string, machine_name: string, user: string, home_directory: string, is_admin: bool): Agent =
+    let agent_id: string = uuid4()
+    return Agent(agent_id: agent_id, os: os, machine_name: machine_name, home_directory: home_directory, user: user, is_admin: is_admin)
 
 proc getId(self: Agent):string = self.agent_id
 proc getOS(self: Agent):string = self.os
@@ -37,7 +42,7 @@ proc asJson(self: Agent): string =
         "comjob": self.comjob.getId()
     })
 
-export OS, Agent, asJson, getId, getOS, getMachineName, getHomeDirectory, getUser, isAdmin, getComJob
+export OS, Agent, newAgent, asJson, getId, getOS, getMachineName, getHomeDirectory, getUser, isAdmin, getComJob
 
 
 
