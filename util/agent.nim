@@ -36,6 +36,7 @@ proc asJson(self: Agent): string =
     return $(%*{
         "agent_id": self.agent_id,
         "os": self.os,
+        "machine_name":self.machine_name,
         "user": self.user,
         "home_directory": self.home_directory,
         "is_admin": self.is_admin,

@@ -33,14 +33,16 @@ proc getHttpVersion(self: HTTPRequest): string = self.http_version
 proc getHeaders(self: HTTPRequest): Table[string, string] = self.headers
 proc getBody(self: HTTPRequest): string = self.body
 
-
 type HTTPResponse = object
     status_code: int
     headers: Table[string, string]
     http_version: string
     body: string
 
-proc newHTTPResponse(status_code: int, headers: Table[string, string], http_version: string, body: string): HTTPResponse = HTTPResponse(status_code: status_code, headers: headers, http_version: http_version, body: body)
+proc newHTTPResponse(status_code: int, headers: Table[string, string], http_version: string, body: string): HTTPResponse =
+    var headers_for_realz = headers
+    headers_for_realz["server"] = "PestoStrike"
+    return HTTPResponse(status_code: status_code, headers: headers_for_realz, http_version: http_version, body: body)
 
 proc getStatusCode(self: HTTPResponse): int = self.status_code
 proc getHeaders(self: HTTPResponse): Table[string, string] = self.headers
